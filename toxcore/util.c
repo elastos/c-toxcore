@@ -27,6 +27,10 @@
 #include "config.h"
 #endif
 
+#ifdef _WIN32
+#define _WINSOCKAPI_ //hack to exclude to include winsock.h
+#endif
+
 #ifndef _XOPEN_SOURCE
 #define _XOPEN_SOURCE 600
 #endif

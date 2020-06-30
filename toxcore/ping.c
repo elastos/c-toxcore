@@ -63,7 +63,7 @@ struct Ping {
 
 int32_t ping_send_request(Ping *ping, IP_Port ipp, const uint8_t *public_key)
 {
-    uint8_t   pk[DHT_PING_SIZE];
+    CARRIER_VLA(uint8_t, pk, DHT_PING_SIZE);
     int       rc;
     uint64_t  ping_id;
 
@@ -103,13 +103,13 @@ int32_t ping_send_request(Ping *ping, IP_Port ipp, const uint8_t *public_key)
         return 1;
     }
 
-    return sendpacket(dht_get_net(ping->dht), ipp, pk, sizeof(pk));
+    return sendpacket(dht_get_net(ping->dht), ipp, pk, CARRIER_SIZEOF_VLA(pk));
 }
 
 static int ping_send_response(Ping *ping, IP_Port ipp, const uint8_t *public_key, uint64_t ping_id,
                               uint8_t *shared_encryption_key)
 {
-    uint8_t   pk[DHT_PING_SIZE];
+    CARRIER_VLA(uint8_t, pk, DHT_PING_SIZE);
     int       rc;
 
     if (id_equal(public_key, dht_get_self_public_key(ping->dht))) {
@@ -134,7 +134,7 @@ static int ping_send_response(Ping *ping, IP_Port ipp, const uint8_t *public_key
         return 1;
     }
 
-    return sendpacket(dht_get_net(ping->dht), ipp, pk, sizeof(pk));
+    return sendpacket(dht_get_net(ping->dht), ipp, pk, CARRIER_SIZEOF_VLA(pk));
 }
 
 static int handle_ping_request(void *object, IP_Port source, const uint8_t *packet, uint16_t length, void *userdata)

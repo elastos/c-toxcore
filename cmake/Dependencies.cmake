@@ -13,17 +13,17 @@ find_library(RT_LIBRARIES           rt           )
 find_library(SOCKET_LIBRARIES       socket       )
 
 # For toxcore.
-pkg_use_module(LIBSODIUM            libsodium    )
+#pkg_use_module(LIBSODIUM            libsodium    )
 
 # For toxav.
 pkg_use_module(OPUS                 opus         )
 pkg_use_module(VPX                  vpx          )
 
 # For tox-bootstrapd.
-pkg_use_module(LIBCONFIG            libconfig    )
+#pkg_use_module(LIBCONFIG            libconfig    )
 
 # For tox-spectest.
-pkg_use_module(MSGPACK              msgpack      )
+#pkg_use_module(MSGPACK              msgpack      )
 
 # For av_test.
 pkg_use_module(OPENCV               opencv       )
@@ -45,9 +45,10 @@ if(MSVC)
   # ---------
   find_library(LIBSODIUM_LIBRARIES
     NAMES sodium libsodium
-    PATHS
+    PATHS "${CMAKE_INSTALL_PREFIX}/lib"
       "third_party/libsodium/Win32/Release/v140/dynamic"
       "third_party/libsodium/x64/Release/v140/dynamic"
+    NO_DEFAULT_PATH
   )
   if(LIBSODIUM_LIBRARIES)
     include_directories("third_party/libsodium/include")
@@ -59,6 +60,7 @@ if(MSVC)
 
   # pthreads
   # --------
+  if(FALSE) # skip to use win32 thread.
   if(CMAKE_USE_WIN32_THREADS_INIT)
     find_library(CMAKE_THREAD_LIBS_INIT
       NAMES pthreadVC2
@@ -73,5 +75,22 @@ if(MSVC)
     else()
       message(FATAL_ERROR "libpthreads libraries not found")
     endif()
+  endif()
+  endif()
+
+  if(CMAKE_USE_SLIM_PTHREAD_INIT)
+      find_library(SLIM_PTHREAD_LIBRARIES
+          NAMES pthread slim-pthread
+          PATHS "${CMAKE_INSTALL_PREFIX}/lib"
+          NO_DEFAULT_PATH
+      )
+
+      if(SLIM_PTHREAD_LIBRARIES)
+          set(CMAKE_THREAD_LIBS_INIT "pthread")
+          include_directories("${CMAKE_INSTALL_PREFIX}/include")
+          message("Use slim-pthread as pthreads library, Great!!!")
+      else()
+          message(FATAL_ERROR, "Library slim-pthread not found")
+      endif()
   endif()
 endif()

@@ -14,8 +14,8 @@
 #
 ################################################################################
 
-cmake_minimum_required(VERSION 2.8.12)
-cmake_policy(VERSION 2.8.12)
+cmake_minimum_required(VERSION 2.9)
+cmake_policy(VERSION 2.9)
 project(toxcore)
 
 set(CMAKE_MODULE_PATH ${toxcore_SOURCE_DIR}/cmake)
@@ -125,6 +125,52 @@ if(BUILD_TOXAV)
     message(${NO_TOXAV_ERROR_TYPE} "Option BUILD_TOXAV is enabled but required library VPX was not found.")
     set(BUILD_TOXAV OFF)
   endif()
+endif()
+
+################################################################################
+#
+# Used for carrier build.
+#
+################################################################################
+
+include_directories(${CMAKE_INSTALL_PREFIX}/include)
+link_directories(${CMAKE_INSTALL_PREFIX}/lib)
+
+option(BUILD_CARRIER "Whether to build toxcore with segregated network" ON)
+
+if(BUILD_CARRIER)
+add_definitions(-DCARRIER_BUILD)
+    set(CHECK_FOUND FALSE)
+endif()
+
+if(MSVC)
+    add_definitions(
+        -DWIN32_LEAN_AND_MEAN
+        -D_CRT_SECURE_NO_WARNINGS
+        -D_CRT_NONSTDC_NO_WARNINGS)
+endif()
+
+find_library(LIBSODIUM_LIBRARIES
+    NAMES sodium libsodium
+    PATHS "${CMAKE_INSTALL_PREFIX}/lib"
+	NO_DEFAULT_PATH)
+
+if(LIBSODIUM_LIBRARIES)
+    set(LIBSODIUM_FOUND TRUE)
+    add_definitions(-DSODIUM_STATIC)
+else()
+    message(FATAL_ERROR "Dependency library sodium not found")
+endif()
+
+find_library(LIBCONFIG_LIBRARIES
+    NAMES config libconfig
+    PATHS "${CMAKE_INSTALL_PREFIX}/lib"
+	NO_DEFAULT_PATH)
+
+if(LIBCONFIG_LIBRARIES)
+    set(LIBCONFIG_FOUND TRUE)
+else()
+    message(FATAL_ERROR "Dependency library libconfig not found")
 endif()
 
 ################################################################################
@@ -455,7 +501,7 @@ if(DHT_BOOTSTRAP)
 endif()
 
 option(BOOTSTRAP_DAEMON "Enable building of tox-bootstrapd" ON)
-if(BOOTSTRAP_DAEMON AND WIN32)
+if(BOOTSTRAP_DAEMON AND MSVC)
   message(WARNING "Building tox-bootstrapd for Windows is not supported")
   set(BOOTSTRAP_DAEMON OFF)
 endif()
@@ -464,7 +510,7 @@ if(BOOTSTRAP_DAEMON)
     message(WARNING "Option BOOTSTRAP_DAEMON is enabled but required library LIBCONFIG was not found.")
     set(BOOTSTRAP_DAEMON OFF)
   else()
-    add_executable(tox-bootstrapd ${CPUFEATURES}
+    add_module(tox-bootstrapd
       other/bootstrap_daemon/src/command_line_arguments.c
       other/bootstrap_daemon/src/command_line_arguments.h
       other/bootstrap_daemon/src/config.c
@@ -481,7 +527,7 @@ if(BOOTSTRAP_DAEMON)
       other/bootstrap_node_packets.c
       other/bootstrap_node_packets.h)
     target_link_modules(tox-bootstrapd toxcore ${LIBCONFIG_LIBRARIES})
-    install(TARGETS tox-bootstrapd RUNTIME DESTINATION bin)
+	install(TARGETS tox-bootstrapd_static ARCHIVE DESTINATION lib)
   endif()
 endif()
 

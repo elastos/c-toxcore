@@ -224,5 +224,9 @@ TCP_Connections *new_tcp_connections(Mono_Time *mono_time, const uint8_t *secret
 void do_tcp_connections(TCP_Connections *tcp_c, void *userdata);
 void kill_tcp_connections(TCP_Connections *tcp_c);
 
+#if defined(CARRIER_BUILD)
+int get_random_tcp_relay_addr(TCP_Connections *tcp_c, IP_Port *ip_port, uint8_t *public_key);
+#endif
+
 #endif
 

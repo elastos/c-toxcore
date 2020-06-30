@@ -1336,7 +1336,7 @@ static int getnodes(DHT *dht, IP_Port ip_port, const uint8_t *public_key, const 
     }
 
     uint8_t plain[CRYPTO_PUBLIC_KEY_SIZE + sizeof(ping_id)];
-    uint8_t data[1 + CRYPTO_PUBLIC_KEY_SIZE + CRYPTO_NONCE_SIZE + sizeof(plain) + CRYPTO_MAC_SIZE];
+    CARRIER_VLA(uint8_t, data, 1 + CRYPTO_PUBLIC_KEY_SIZE + CRYPTO_NONCE_SIZE + sizeof(plain) + CRYPTO_MAC_SIZE);
 
     memcpy(plain, client_id, CRYPTO_PUBLIC_KEY_SIZE);
     memcpy(plain + CRYPTO_PUBLIC_KEY_SIZE, &ping_id, sizeof(ping_id));
@@ -1347,7 +1347,7 @@ static int getnodes(DHT *dht, IP_Port ip_port, const uint8_t *public_key, const 
     const int len = dht_create_packet(dht->self_public_key, shared_key, NET_PACKET_GET_NODES,
                                       plain, sizeof(plain), data);
 
-    if (len != sizeof(data)) {
+    if (len != CARRIER_SIZEOF_VLA(data)) {
         return -1;
     }
 
@@ -1389,12 +1389,12 @@ static int sendnodes_ipv6(const DHT *dht, IP_Port ip_port, const uint8_t *public
     memcpy(plain + 1 + nodes_length, sendback_data, length);
 
     const uint32_t crypto_size = 1 + CRYPTO_PUBLIC_KEY_SIZE + CRYPTO_NONCE_SIZE + CRYPTO_MAC_SIZE;
-    VLA(uint8_t, data, 1 + nodes_length + length + crypto_size);
+    CARRIER_VLA(uint8_t, data, 1 + nodes_length + length + crypto_size);
 
     const int len = dht_create_packet(dht->self_public_key, shared_encryption_key, NET_PACKET_SEND_NODES_IPV6,
                                       plain, 1 + nodes_length + length, data);
 
-    if (len != SIZEOF_VLA(data)) {
+    if (len != CARRIER_SIZEOF_VLA(data)) {
         return -1;
     }
 
@@ -2075,7 +2075,7 @@ static int routeone_tofriend(DHT *dht, const uint8_t *friend_id, const uint8_t *
 static int send_NATping(DHT *dht, const uint8_t *public_key, uint64_t ping_id, uint8_t type)
 {
     uint8_t data[sizeof(uint64_t) + 1];
-    uint8_t packet[MAX_CRYPTO_REQUEST_SIZE];
+    CARRIER_VLA(uint8_t, packet, MAX_CRYPTO_REQUEST_SIZE);
 
     int num = 0;
 
@@ -2317,7 +2317,7 @@ static int send_hardening_req(DHT *dht, Node_format *sendto, uint8_t type, uint8
         return -1;
     }
 
-    uint8_t packet[MAX_CRYPTO_REQUEST_SIZE];
+    CARRIER_VLA(uint8_t, packet, MAX_CRYPTO_REQUEST_SIZE);
     uint8_t data[HARDREQ_DATA_SIZE] = {0};
     data[0] = type;
     memcpy(data + 1, contents, length);
@@ -2350,7 +2350,7 @@ static int send_hardening_getnode_res(const DHT *dht, const Node_format *sendto,
         return -1;
     }
 
-    uint8_t packet[MAX_CRYPTO_REQUEST_SIZE];
+    CARRIER_VLA(uint8_t, packet, MAX_CRYPTO_REQUEST_SIZE);
     VLA(uint8_t, data, 1 + CRYPTO_PUBLIC_KEY_SIZE + nodes_data_length);
     data[0] = CHECK_TYPE_GETNODE_RES;
     memcpy(data + 1, queried_client_id, CRYPTO_PUBLIC_KEY_SIZE);

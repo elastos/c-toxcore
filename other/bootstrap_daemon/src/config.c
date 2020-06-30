@@ -294,6 +294,123 @@ int get_general_config(const char *cfg_file_path, char **pid_file_path, char **k
     return 1;
 }
 
+#ifdef CARRIER_BUILD
+int get_turn_config(const char *cfg_file_path, int *port, char **realm,
+                    char **pid_file_path, char **userdb, int *verbose)
+{
+    config_t cfg;
+
+    const char *NAME_TURN                 = "turn";
+
+    const char *NAME_PORT                 = "port";
+    const char *NAME_REALM                = "realm";
+    const char *NAME_PID_FILE_PATH        = "pid_file_path";
+    const char *NAME_USER_DB              = "userdb";
+    const char *NAME_VERBOSE              = "verbose";
+
+    config_init(&cfg);
+
+    // Read the file. If there is an error, report it and exit.
+    if (config_read_file(&cfg, cfg_file_path) == CONFIG_FALSE) {
+        log_write(LOG_LEVEL_ERROR, "%s:%d - %s\n", config_error_file(&cfg), config_error_line(&cfg), config_error_text(&cfg));
+        config_destroy(&cfg);
+        return 0;
+    }
+
+    config_setting_t *turn_cfg = config_lookup(&cfg, NAME_TURN);
+
+    if (turn_cfg == NULL) {
+        log_write(LOG_LEVEL_WARNING, "No '%s' setting in the configuration file. Skipping bootstrapping.\n",
+                  NAME_TURN);
+        config_destroy(&cfg);
+        return 1;
+    }
+
+    // Get port
+    if (config_setting_lookup_int(turn_cfg, NAME_PORT, port) == CONFIG_FALSE) {
+        log_write(LOG_LEVEL_WARNING, "No TURN '%s' setting in turn config file.\n", NAME_PORT);
+        *port = 0;
+    }
+
+    // Get realm
+    const char *tmp_realm;
+
+    if (config_setting_lookup_string(turn_cfg, NAME_REALM, &tmp_realm) == CONFIG_FALSE) {
+        log_write(LOG_LEVEL_WARNING, "No TURN '%s' setting in configuration file.\n", NAME_REALM);
+        tmp_realm = NULL;
+    }
+
+    if (tmp_realm) {
+        *realm = (char *)malloc(strlen(tmp_realm) + 1);
+        strcpy(*realm, tmp_realm);
+    } else {
+        *realm = NULL;
+    }
+
+    // Get PID file location
+    const char *tmp_pid_file;
+
+    if (config_setting_lookup_string(turn_cfg, NAME_PID_FILE_PATH, &tmp_pid_file) == CONFIG_FALSE) {
+        log_write(LOG_LEVEL_WARNING, "No TURN '%s' setting in configuration file.\n", NAME_PID_FILE_PATH);
+        tmp_pid_file = NULL;
+    }
+
+    if (tmp_pid_file) {
+        *pid_file_path = (char *)malloc(strlen(tmp_pid_file) + 1);
+        strcpy(*pid_file_path, tmp_pid_file);
+    } else {
+        *pid_file_path = NULL;
+    }
+
+    // Get user db location
+    const char *tmp_userdb;
+
+    if (config_setting_lookup_string(turn_cfg, NAME_USER_DB, &tmp_userdb) == CONFIG_FALSE) {
+        log_write(LOG_LEVEL_WARNING, "No TURN '%s' setting in configuration file.\n", NAME_USER_DB);
+        tmp_userdb = NULL;
+    }
+
+    if (tmp_userdb) {
+        *userdb = (char *)malloc(strlen(tmp_userdb) + 1);
+        strcpy(*userdb, tmp_userdb);
+    } else {
+        *userdb = NULL;
+    }
+
+    if (config_setting_lookup_bool(turn_cfg, NAME_VERBOSE, verbose) == CONFIG_FALSE) {
+         *verbose = 0;
+    }
+
+    config_destroy(&cfg);
+
+    log_write(LOG_LEVEL_INFO, "Successfully read TURN config:\n");
+    if (*port)
+        log_write(LOG_LEVEL_INFO, "'%s': %d\n", NAME_PORT,                 *port);
+    if (*realm)
+        log_write(LOG_LEVEL_INFO, "'%s': %s\n", NAME_REALM,                *realm);
+    if (*pid_file_path)
+        log_write(LOG_LEVEL_INFO, "'%s': %s\n", NAME_PID_FILE_PATH,        *pid_file_path);
+    if (*userdb)
+        log_write(LOG_LEVEL_INFO, "'%s': %s\n", NAME_USER_DB,              *userdb);
+    if (*verbose)
+        log_write(LOG_LEVEL_INFO, "'%s': %d\n", NAME_VERBOSE,              *verbose);
+
+    return 1;
+}
+
+static uint8_t *base58_string_to_bin(const char *base58_string)
+{
+    uint8_t *ret = (uint8_t *)malloc(64);
+    ssize_t len = 64;
+
+    len = base58_decode(base58_string, strlen(base58_string), ret, 64);
+    if (len != 32) {
+        return NULL;
+    }
+
+    return ret;
+}
+#else
 /**
  *
  * Converts a hex string with even number of characters into binary.
@@ -323,6 +440,7 @@ static uint8_t *bootstrap_hex_string_to_bin(const char *hex_string)
 
     return ret;
 }
+#endif
 
 int bootstrap_from_config(const char *cfg_file_path, DHT *dht, int enable_ipv6)
 {
@@ -393,12 +511,14 @@ int bootstrap_from_config(const char *cfg_file_path, DHT *dht, int enable_ipv6)
             goto next;
         }
 
+#ifndef CARRIER_BUILD
         // Process settings
         if (strlen(bs_public_key) != CRYPTO_PUBLIC_KEY_SIZE * 2) {
             log_write(LOG_LEVEL_WARNING, "Bootstrap node #%d: Invalid '%s': %s. Skipping the node.\n", i, NAME_PUBLIC_KEY,
                       bs_public_key);
             goto next;
         }
+#endif
 
         if (bs_port < MIN_ALLOWED_PORT || bs_port > MAX_ALLOWED_PORT) {
             log_write(LOG_LEVEL_WARNING, "Bootstrap node #%d: Invalid '%s': %d, should be in [%d, %d]. Skipping the node.\n", i,
@@ -407,7 +527,11 @@ int bootstrap_from_config(const char *cfg_file_path, DHT *dht, int enable_ipv6)
             goto next;
         }
 
+#ifdef CARRIER_BUILD
+        bs_public_key_bin = base58_string_to_bin(bs_public_key);
+#else
         bs_public_key_bin = bootstrap_hex_string_to_bin(bs_public_key);
+#endif
         address_resolved = dht_bootstrap_from_address(dht, bs_address, enable_ipv6, net_htons(bs_port),
                            bs_public_key_bin);
         free(bs_public_key_bin);
@@ -431,3 +555,136 @@ next:
 
     return 1;
 }
+
+#ifdef CARRIER_BUILD
+#include <stdint.h>
+
+static const char b58digits_ordered[] = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+static const int8_t b58digits_map[] = {
+    -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+    -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+    -1,-1,-1,-1,-1,-1,-1,-1, -1,-1,-1,-1,-1,-1,-1,-1,
+    -1, 0, 1, 2, 3, 4, 5, 6,  7, 8,-1,-1,-1,-1,-1,-1,
+    -1, 9,10,11,12,13,14,15, 16,-1,17,18,19,20,21,-1,
+    22,23,24,25,26,27,28,29, 30,31,32,-1,-1,-1,-1,-1,
+    -1,33,34,35,36,37,38,39, 40,41,42,43,-1,44,45,46,
+    47,48,49,50,51,52,53,54, 55,56,57,-1,-1,-1,-1,-1,
+};
+
+char *base58_encode(const void *data, size_t len, char *text, size_t *textlen)
+{
+    const uint8_t *bin = data;
+    int carry;
+    ssize_t i, j, high, zcount = 0;
+    size_t size;
+
+    while (zcount < len && !bin[zcount])
+        ++zcount;
+
+    size = (len - zcount) * 138 / 100 + 1;
+    uint8_t *buf = (uint8_t *)alloca(size * sizeof(uint8_t));
+    memset(buf, 0, size);
+
+    for (i = zcount, high = size - 1; i < len; ++i, high = j) {
+        for (carry = bin[i], j = size - 1; (j > high) || carry; --j) {
+            carry += 256 * buf[j];
+            buf[j] = carry % 58;
+            carry /= 58;
+        }
+    }
+
+    for (j = 0; j < size && !buf[j]; ++j);
+
+    if (*textlen <= zcount + size - j) {
+        *textlen = zcount + size - j + 1;
+        return NULL;
+    }
+
+    if (zcount)
+        memset(text, '1', zcount);
+    for (i = zcount; j < size; ++i, ++j)
+        text[i] = b58digits_ordered[buf[j]];
+    text[i] = '\0';
+    *textlen = i + 1;
+
+    return text;
+}
+
+ssize_t base58_decode(const char *text, size_t textlen, void *data, size_t datalen)
+{
+    size_t tmp = datalen;
+    size_t *binszp = &tmp;
+    size_t binsz = *binszp;
+    const unsigned char *textu = (void*)text;
+    unsigned char *binu = data;
+    size_t outisz = (binsz + 3) / 4;
+    uint32_t *outi = (uint32_t *)alloca(outisz * sizeof(uint32_t));
+    uint64_t t;
+    uint32_t c;
+    size_t i, j;
+    uint8_t bytesleft = binsz % 4;
+    uint32_t zeromask = bytesleft ? (0xffffffff << (bytesleft * 8)) : 0;
+    unsigned zerocount = 0;
+
+    if (!textlen)
+        textlen = strlen(text);
+
+    memset(outi, 0, outisz * sizeof(*outi));
+
+    // Leading zeros, just count
+    for (i = 0; i < textlen && textu[i] == '1'; ++i)
+        ++zerocount;
+
+    for ( ; i < textlen; ++i) {
+        if (textu[i] & 0x80)
+            // High-bit set on invalid digit
+            return -1;
+        if (b58digits_map[textu[i]] == -1)
+            // Invalid base58 digit
+            return -1;
+        c = (unsigned)b58digits_map[textu[i]];
+        for (j = outisz; j--; ) {
+            t = ((uint64_t)outi[j]) * 58 + c;
+            c = (t & 0x3f00000000) >> 32;
+            outi[j] = t & 0xffffffff;
+        }
+        if (c)
+            // Output number too big (carry to the next int32)
+            return -1;
+        if (outi[0] & zeromask)
+            // Output number too big (last int32 filled too far)
+            return -1;
+    }
+
+    j = 0;
+    switch (bytesleft) {
+    case 3:
+        *(binu++) = (outi[0] &   0xff0000) >> 16;
+    case 2:
+        *(binu++) = (outi[0] &     0xff00) >>  8;
+    case 1:
+        *(binu++) = (outi[0] &       0xff);
+        ++j;
+    default:
+        break;
+    }
+
+    for (; j < outisz; ++j) {
+        *(binu++) = (outi[j] >> 0x18) & 0xff;
+        *(binu++) = (outi[j] >> 0x10) & 0xff;
+        *(binu++) = (outi[j] >>    8) & 0xff;
+        *(binu++) = (outi[j] >>    0) & 0xff;
+    }
+
+    // Count canonical base58 byte count
+    binu = data;
+    for (i = 0; i < binsz; ++i) {
+        if (binu[i])
+            break;
+        --*binszp;
+    }
+    *binszp += zerocount;
+
+    return *binszp;
+}
+#endif

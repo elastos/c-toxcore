@@ -275,11 +275,16 @@ int32_t m_addfriend(Messenger *m, const uint8_t *address, const uint8_t *data, u
         uint32_t nospam;
         memcpy(&nospam, address + CRYPTO_PUBLIC_KEY_SIZE, sizeof(nospam));
 
-        if (m->friendlist[friend_id].friendrequest_nospam == nospam) {
+        if (m->friendlist[friend_id].friendrequest_nospam == nospam &&
+            (m->friendlist[friend_id].info_size == length &&
+             !memcmp(m->friendlist[friend_id].info, data, length))) {
             return FAERR_ALREADYSENT;
         }
 
         m->friendlist[friend_id].friendrequest_nospam = nospam;
+        memcpy(m->friendlist[friend_id].info, data, length);
+        m->friendlist[friend_id].info_size = length;
+
         return FAERR_SETNEWNOSPAM;
     }
 
@@ -835,11 +840,19 @@ static int set_friend_statusmessage(const Messenger *m, int32_t friendnumber, co
 
 static void set_friend_userstatus(const Messenger *m, int32_t friendnumber, uint8_t status)
 {
+    if (friend_not_valid(m, friendnumber)) {
+        return;
+    }
+
     m->friendlist[friendnumber].userstatus = (Userstatus)status;
 }
 
 static void set_friend_typing(const Messenger *m, int32_t friendnumber, uint8_t is_typing)
 {
+    if (friend_not_valid(m, friendnumber)) {
+        return;
+    }
+
     m->friendlist[friendnumber].is_typing = is_typing;
 }
 
@@ -921,7 +934,7 @@ static void check_friend_tcp_udp(Messenger *m, int32_t friendnumber, void *userd
         }
     }
 
-    m->friendlist[friendnumber].last_connection_udp_tcp = ret;
+    if (0 == friend_not_valid(m, friendnumber)) m->friendlist[friendnumber].last_connection_udp_tcp = ret;
 }
 
 static void break_files(const Messenger *m, int32_t friendnumber);
@@ -959,7 +972,7 @@ static void check_friend_connectionstatus(Messenger *m, int32_t friendnumber, ui
 static void set_friend_status(Messenger *m, int32_t friendnumber, uint8_t status, void *userdata)
 {
     check_friend_connectionstatus(m, friendnumber, status, userdata);
-    m->friendlist[friendnumber].status = status;
+    if (0 == friend_not_valid(m, friendnumber)) m->friendlist[friendnumber].status = status;
 }
 
 static int write_cryptpacket_id(const Messenger *m, int32_t friendnumber, uint8_t packet_id, const uint8_t *data,
@@ -1598,6 +1611,8 @@ static bool do_all_filetransfers(Messenger *m, int32_t friendnumber, void *userd
 
 static void do_reqchunk_filecb(Messenger *m, int32_t friendnumber, void *userdata)
 {
+    if (friend_not_valid(m, friendnumber)) return;
+
     // We're not currently doing any file transfers.
     if (m->friendlist[friendnumber].num_sending_files == 0) {
         return;
@@ -1968,7 +1983,7 @@ Messenger *new_messenger(Mono_Time *mono_time, Messenger_Options *options, unsig
 
     m->mono_time = mono_time;
 
-    m->fr = friendreq_new();
+    m->fr = friendreq_new(m->mono_time);
 
     if (!m->fr) {
         free(m);
@@ -2485,7 +2500,10 @@ static void do_friends(Messenger *m, void *userdata)
 
             if (fr >= 0) {
                 set_friend_status(m, i, FRIEND_REQUESTED, userdata);
-                m->friendlist[i].friendrequest_lastsent = temp_time;
+                if (0 == friend_not_valid(m, i)) m->friendlist[i].friendrequest_lastsent = temp_time;
+                else {
+                    continue;
+                }
             }
         }
 
@@ -2502,25 +2520,37 @@ static void do_friends(Messenger *m, void *userdata)
         if (m->friendlist[i].status == FRIEND_ONLINE) { /* friend is online. */
             if (m->friendlist[i].name_sent == 0) {
                 if (m_sendname(m, i, m->name, m->name_length)) {
-                    m->friendlist[i].name_sent = 1;
+                    if (0 == friend_not_valid(m, i)) m->friendlist[i].name_sent = 1;
+                    else {
+                        continue;
+                    }
                 }
             }
 
             if (m->friendlist[i].statusmessage_sent == 0) {
                 if (send_statusmessage(m, i, m->statusmessage, m->statusmessage_length)) {
-                    m->friendlist[i].statusmessage_sent = 1;
+                    if (0 == friend_not_valid(m, i)) m->friendlist[i].statusmessage_sent = 1;
+                    else {
+                        continue;
+                    }
                 }
             }
 
             if (m->friendlist[i].userstatus_sent == 0) {
                 if (send_userstatus(m, i, m->userstatus)) {
-                    m->friendlist[i].userstatus_sent = 1;
+                    if (0 == friend_not_valid(m, i)) m->friendlist[i].userstatus_sent = 1;
+                    else {
+                        continue;
+                    }
                 }
             }
 
             if (m->friendlist[i].user_istyping_sent == 0) {
                 if (send_user_istyping(m, i, m->friendlist[i].user_istyping)) {
-                    m->friendlist[i].user_istyping_sent = 1;
+                    if (0 == friend_not_valid(m, i)) m->friendlist[i].user_istyping_sent = 1;
+                    else {
+                        continue;
+                    }
                 }
             }
 
@@ -2528,7 +2558,7 @@ static void do_friends(Messenger *m, void *userdata)
             do_receipts(m, i, userdata);
             do_reqchunk_filecb(m, i, userdata);
 
-            m->friendlist[i].last_seen_time = (uint64_t) time(nullptr);
+            if (0 == friend_not_valid(m, i)) m->friendlist[i].last_seen_time = (uint64_t) time(nullptr);
         }
     }
 }
@@ -3321,3 +3351,14 @@ uint32_t copy_friendlist(Messenger const *m, uint32_t *out_list, uint32_t list_s
 
     return ret;
 }
+
+#if defined(CARRIER_BUILD)
+int messenger_get_random_tcp_relay_addr(const Messenger *m, IP_Port *ip_port, uint8_t *public_key)
+{
+    if (!m || !ip_port)
+        return -1;
+
+    return crypto_get_random_tcp_relay_addr(m->net_crypto, ip_port, public_key);
+}
+#endif
+

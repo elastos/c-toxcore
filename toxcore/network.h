@@ -34,9 +34,105 @@
 extern "C" {
 #endif
 
+#if defined(_WIN32) || defined(__WIN32__) || defined (WIN32) /* Put win32 includes here */
+#ifndef WINVER
+//Windows XP
+#define WINVER 0x0501
+#endif
+
+// The mingw32/64 Windows library warns about including winsock2.h after
+// windows.h even though with the above it's a valid thing to do. So, to make
+// mingw32 headers happy, we include winsock2.h first.
+#include <winsock2.h>
+
+#include <ws2tcpip.h>
+#include <windows.h>
+
+#endif
+
 typedef struct Family {
     uint8_t value;
 } Family;
+
+#if defined(CARRIER_BUILD)
+#if defined(_WIN32)
+#include <malloc.h>
+#define alloca _alloca
+#else
+#include <alloca.h>
+#include <arpa/inet.h>
+#endif
+
+static const uint32_t _w_magic = 0x69766567; //'ELAC';
+
+static inline
+size_t carrier_magic_size(void)
+{
+    return sizeof(_w_magic);
+}
+static inline
+void carrier_magic_set(const uint8_t *addr)
+{
+    uint8_t *const rewind = (uint8_t *)addr - carrier_magic_size();
+    *(uint32_t *)rewind = htonl(_w_magic);
+}
+static inline
+int carrier_magic_check(const uint8_t *addr)
+{
+    uint8_t *const rewind = (uint8_t *)addr - carrier_magic_size();
+    return ntohl(*(uint32_t *)rewind) == _w_magic;
+}
+static inline
+int carrier_magic_check_unrewind(const uint8_t *addr)
+{
+    return ntohl(*(uint32_t *)addr) == _w_magic;
+}
+static inline
+const uint8_t *carrier_rewind(const uint8_t *addr)
+{
+    return addr - carrier_magic_size();
+}
+static inline
+size_t carrier_rewind_size(size_t len)
+{
+    return len + carrier_magic_size();
+}
+
+#define carrier_rewind_sizeof(p)  carrier_rewind_size(CARRIER_SIZEOF_VLA(p))
+
+#define CARRIER_VLA(type, name, size)                                   \
+    const size_t name##_size = (size) * sizeof(type) + carrier_magic_size(); \
+    type *const name##_i = (type *)alloca(name##_size); \
+    type *const name = (type *)((uint8_t *)name##_i + carrier_magic_size())
+#define CARRIER_SIZEOF_VLA(name)        (name##_size - carrier_magic_size())
+#else
+static inline
+size_t carrier_magic_size(void)
+{
+	return 0;
+}
+static inline
+void carrier_magic_set(const uint8_t *addr)
+{
+    (void)addr;
+}
+static inline
+const uint8_t *carrier_rewind(const uint8_t *addr)
+{
+    return addr;
+}
+static inline
+size_t carrier_rewind_size(size_t len)
+{
+    return len;
+}
+
+#define carrier_rewind_sizeof(p) SIZEOF_VLA(p)
+
+#define CARRIER_VLA(type, name, size) VLA(type, name, size)
+#define CARRIER_SIZEOF_VLA(name)  SIZEOF_VLA(name)
+
+#endif
 
 bool net_family_is_unspec(Family family);
 bool net_family_is_ipv4(Family family);

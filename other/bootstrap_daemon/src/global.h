@@ -27,8 +27,7 @@
 
 #include "../../../toxcore/tox.h"
 
-#define DAEMON_NAME "tox-bootstrapd"
-
+#define DAEMON_NAME "carrier-bootstrapd"
 #define DAEMON_VERSION_MAJOR TOX_VERSION_MAJOR
 #define DAEMON_VERSION_MINOR TOX_VERSION_MINOR
 #define DAEMON_VERSION_PATCH TOX_VERSION_PATCH
