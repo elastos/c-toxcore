@@ -1,21 +1,6 @@
-/*
+/* SPDX-License-Identifier: GPL-3.0-or-later
  * Copyright © 2016-2018 The TokTok team.
  * Copyright © 2013-2015 Tox project.
- *
- * This file is part of Tox, the free peer to peer instant messenger.
- *
- * Tox is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * Tox is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Tox.  If not, see <http://www.gnu.org/licenses/>.
  */
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -256,15 +241,16 @@ VCSession *vc_new(Mono_Time *mono_time, const Logger *log, ToxAV *av, uint32_t f
     control function to set noise sensitivity
       0: off, 1: OnYOnly, 2: OnYUV, 3: OnYUVAggressive, 4: Adaptive
     */
-    /*
-      rc = vpx_codec_control(vc->encoder, VP8E_SET_NOISE_SENSITIVITY, 2);
+#if 0
+    rc = vpx_codec_control(vc->encoder, VP8E_SET_NOISE_SENSITIVITY, 2);
 
-      if (rc != VPX_CODEC_OK) {
-          LOGGER_ERROR(log, "Failed to set encoder control setting: %s", vpx_codec_err_to_string(rc));
-          vpx_codec_destroy(vc->encoder);
-          goto BASE_CLEANUP_1;
-      }
-     */
+    if (rc != VPX_CODEC_OK) {
+        LOGGER_ERROR(log, "Failed to set encoder control setting: %s", vpx_codec_err_to_string(rc));
+        vpx_codec_destroy(vc->encoder);
+        goto BASE_CLEANUP_1;
+    }
+
+#endif
     vc->linfts = current_time_monotonic(mono_time);
     vc->lcfd = 60;
     vc->vcb = cb;
@@ -318,6 +304,7 @@ void vc_iterate(VCSession *vc)
         return;
     }
 
+    uint16_t log_rb_size = rb_size(vc->vbuf_raw);
     pthread_mutex_unlock(vc->queue_mutex);
     const struct RTPHeader *const header = &p->header;
 
@@ -332,7 +319,7 @@ void vc_iterate(VCSession *vc)
     }
 
     LOGGER_DEBUG(vc->log, "vc_iterate: rb_read p->len=%d p->header.xe=%d", (int)full_data_len, p->header.xe);
-    LOGGER_DEBUG(vc->log, "vc_iterate: rb_read rb size=%d", (int)rb_size(vc->vbuf_raw));
+    LOGGER_DEBUG(vc->log, "vc_iterate: rb_read rb size=%d", (int)log_rb_size);
     const vpx_codec_err_t rc = vpx_codec_decode(vc->decoder, p->data, full_data_len, nullptr, MAX_DECODE_TIME_US);
     free(p);
 
@@ -364,6 +351,10 @@ int vc_queue_message(Mono_Time *mono_time, void *vcp, struct RTPMessage *msg)
      * this function gets called from handle_rtp_packet() and handle_rtp_packet_v3()
      */
     if (!vcp || !msg) {
+        if (msg) {
+            free(msg);
+        }
+
         return -1;
     }
 

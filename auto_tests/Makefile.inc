@@ -3,6 +3,7 @@ if BUILD_TESTS
 TESTS = \
 	bootstrap_test \
 	conference_double_invite_test \
+	conference_invite_merge_test \
 	conference_peer_nick_test \
 	conference_simple_test \
 	conference_test \
@@ -32,8 +33,8 @@ TESTS = \
 	set_name_test \
 	set_status_message_test \
 	skeleton_test \
-	tcp_relay_test \
 	TCP_test \
+	tcp_relay_test \
 	tox_many_tcp_test \
 	tox_many_test \
 	tox_one_test \
@@ -70,6 +71,10 @@ bootstrap_test_LDADD = $(AUTOTEST_LDADD)
 conference_double_invite_test_SOURCES = ../auto_tests/conference_double_invite_test.c
 conference_double_invite_test_CFLAGS = $(AUTOTEST_CFLAGS)
 conference_double_invite_test_LDADD = $(AUTOTEST_LDADD)
+
+conference_invite_merge_test_SOURCES = ../auto_tests/conference_invite_merge_test.c
+conference_invite_merge_test_CFLAGS = $(AUTOTEST_CFLAGS)
+conference_invite_merge_test_LDADD = $(AUTOTEST_LDADD)
 
 conference_peer_nick_test_SOURCES = ../auto_tests/conference_peer_nick_test.c
 conference_peer_nick_test_CFLAGS = $(AUTOTEST_CFLAGS)

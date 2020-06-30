@@ -1,25 +1,10 @@
-/*
- * Handles TCP relay connections between two Tox clients.
+/* SPDX-License-Identifier: GPL-3.0-or-later
+ * Copyright © 2016-2018 The TokTok team.
+ * Copyright © 2015 Tox project.
  */
 
 /*
- * Copyright © 2016-2018 The TokTok team.
- * Copyright © 2015 Tox project.
- *
- * This file is part of Tox, the free peer to peer instant messenger.
- *
- * Tox is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * Tox is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Tox.  If not, see <http://www.gnu.org/licenses/>.
+ * Handles TCP relay connections between two Tox clients.
  */
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -115,44 +100,44 @@ static int realloc_TCP_con(TCP_con **array, size_t num)
 }
 
 
-/* return 1 if the connections_number is not valid.
- * return 0 if the connections_number is valid.
+/**
+ * Return true if the connections_number is valid.
  */
-static bool connections_number_not_valid(const TCP_Connections *tcp_c, int connections_number)
+static bool connections_number_is_valid(const TCP_Connections *tcp_c, int connections_number)
 {
     if ((unsigned int)connections_number >= tcp_c->connections_length) {
-        return 1;
+        return false;
     }
 
     if (tcp_c->connections == nullptr) {
-        return 1;
+        return false;
     }
 
     if (tcp_c->connections[connections_number].status == TCP_CONN_NONE) {
-        return 1;
+        return false;
     }
 
-    return 0;
+    return true;
 }
 
-/* return 1 if the tcp_connections_number is not valid.
- * return 0 if the tcp_connections_number is valid.
+/**
+ * Return true if the tcp_connections_number is valid.
  */
-static bool tcp_connections_number_not_valid(const TCP_Connections *tcp_c, int tcp_connections_number)
+static bool tcp_connections_number_is_valid(const TCP_Connections *tcp_c, int tcp_connections_number)
 {
     if ((unsigned int)tcp_connections_number >= tcp_c->tcp_connections_length) {
-        return 1;
+        return false;
     }
 
     if (tcp_c->tcp_connections == nullptr) {
-        return 1;
+        return false;
     }
 
     if (tcp_c->tcp_connections[tcp_connections_number].status == TCP_CONN_NONE) {
-        return 1;
+        return false;
     }
 
-    return 0;
+    return true;
 }
 
 /* Create a new empty connection.
@@ -214,7 +199,7 @@ static int create_tcp_connection(TCP_Connections *tcp_c)
  */
 static int wipe_connection(TCP_Connections *tcp_c, int connections_number)
 {
-    if (connections_number_not_valid(tcp_c, connections_number)) {
+    if (!connections_number_is_valid(tcp_c, connections_number)) {
         return -1;
     }
 
@@ -242,7 +227,7 @@ static int wipe_connection(TCP_Connections *tcp_c, int connections_number)
  */
 static int wipe_tcp_connection(TCP_Connections *tcp_c, int tcp_connections_number)
 {
-    if (tcp_connections_number_not_valid(tcp_c, tcp_connections_number)) {
+    if (!tcp_connections_number_is_valid(tcp_c, tcp_connections_number)) {
         return -1;
     }
 
@@ -265,7 +250,7 @@ static int wipe_tcp_connection(TCP_Connections *tcp_c, int tcp_connections_numbe
 
 static TCP_Connection_to *get_connection(const TCP_Connections *tcp_c, int connections_number)
 {
-    if (connections_number_not_valid(tcp_c, connections_number)) {
+    if (!connections_number_is_valid(tcp_c, connections_number)) {
         return nullptr;
     }
 
@@ -274,7 +259,7 @@ static TCP_Connection_to *get_connection(const TCP_Connections *tcp_c, int conne
 
 static TCP_con *get_tcp_connection(const TCP_Connections *tcp_c, int tcp_connections_number)
 {
-    if (tcp_connections_number_not_valid(tcp_c, tcp_connections_number)) {
+    if (!tcp_connections_number_is_valid(tcp_c, tcp_connections_number)) {
         return nullptr;
     }
 
