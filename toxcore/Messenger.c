@@ -831,7 +831,7 @@ static int set_friend_statusmessage(const Messenger *m, int32_t friendnumber, co
 
 static void set_friend_userstatus(const Messenger *m, int32_t friendnumber, uint8_t status)
 {
-    if (friend_not_valid(m, friendnumber)) {
+    if (!friend_is_valid(m, friendnumber)) {
         return;
     }
 
@@ -840,7 +840,7 @@ static void set_friend_userstatus(const Messenger *m, int32_t friendnumber, uint
 
 static void set_friend_typing(const Messenger *m, int32_t friendnumber, uint8_t is_typing)
 {
-    if (friend_not_valid(m, friendnumber)) {
+    if (!friend_is_valid(m, friendnumber)) {
         return;
     }
 
@@ -925,7 +925,7 @@ static void check_friend_tcp_udp(Messenger *m, int32_t friendnumber, void *userd
         }
     }
 
-    if (0 == friend_not_valid(m, friendnumber)) m->friendlist[friendnumber].last_connection_udp_tcp = ret;
+    if (0 == !friend_is_valid(m, friendnumber)) m->friendlist[friendnumber].last_connection_udp_tcp = ret;
 }
 
 static void break_files(const Messenger *m, int32_t friendnumber);
@@ -963,7 +963,7 @@ static void check_friend_connectionstatus(Messenger *m, int32_t friendnumber, ui
 static void set_friend_status(Messenger *m, int32_t friendnumber, uint8_t status, void *userdata)
 {
     check_friend_connectionstatus(m, friendnumber, status, userdata);
-    if (0 == friend_not_valid(m, friendnumber)) m->friendlist[friendnumber].status = status;
+    if (0 == !friend_is_valid(m, friendnumber)) m->friendlist[friendnumber].status = status;
 }
 
 static int write_cryptpacket_id(const Messenger *m, int32_t friendnumber, uint8_t packet_id, const uint8_t *data,
@@ -1588,7 +1588,7 @@ static bool do_all_filetransfers(Messenger *m, int32_t friendnumber, void *userd
 
 static void do_reqchunk_filecb(Messenger *m, int32_t friendnumber, void *userdata)
 {
-    if (friend_not_valid(m, friendnumber)) return;
+    if (!friend_is_valid(m, friendnumber)) return;
 
     // We're not currently doing any file transfers.
     if (m->friendlist[friendnumber].num_sending_files == 0) {
@@ -2472,7 +2472,7 @@ static void do_friends(Messenger *m, void *userdata)
 
             if (fr >= 0) {
                 set_friend_status(m, i, FRIEND_REQUESTED, userdata);
-                if (0 == friend_not_valid(m, i)) m->friendlist[i].friendrequest_lastsent = temp_time;
+                if (0 == !friend_is_valid(m, i)) m->friendlist[i].friendrequest_lastsent = temp_time;
                 else {
                     continue;
                 }
@@ -2492,7 +2492,7 @@ static void do_friends(Messenger *m, void *userdata)
         if (m->friendlist[i].status == FRIEND_ONLINE) { /* friend is online. */
             if (m->friendlist[i].name_sent == 0) {
                 if (m_sendname(m, i, m->name, m->name_length)) {
-                    if (0 == friend_not_valid(m, i)) m->friendlist[i].name_sent = 1;
+                    if (0 == !friend_is_valid(m, i)) m->friendlist[i].name_sent = 1;
                     else {
                         continue;
                     }
@@ -2501,7 +2501,7 @@ static void do_friends(Messenger *m, void *userdata)
 
             if (m->friendlist[i].statusmessage_sent == 0) {
                 if (send_statusmessage(m, i, m->statusmessage, m->statusmessage_length)) {
-                    if (0 == friend_not_valid(m, i)) m->friendlist[i].statusmessage_sent = 1;
+                    if (0 == !friend_is_valid(m, i)) m->friendlist[i].statusmessage_sent = 1;
                     else {
                         continue;
                     }
@@ -2510,7 +2510,7 @@ static void do_friends(Messenger *m, void *userdata)
 
             if (m->friendlist[i].userstatus_sent == 0) {
                 if (send_userstatus(m, i, m->userstatus)) {
-                    if (0 == friend_not_valid(m, i)) m->friendlist[i].userstatus_sent = 1;
+                    if (0 == !friend_is_valid(m, i)) m->friendlist[i].userstatus_sent = 1;
                     else {
                         continue;
                     }
@@ -2519,7 +2519,7 @@ static void do_friends(Messenger *m, void *userdata)
 
             if (m->friendlist[i].user_istyping_sent == 0) {
                 if (send_user_istyping(m, i, m->friendlist[i].user_istyping)) {
-                    if (0 == friend_not_valid(m, i)) m->friendlist[i].user_istyping_sent = 1;
+                    if (0 == !friend_is_valid(m, i)) m->friendlist[i].user_istyping_sent = 1;
                     else {
                         continue;
                     }
@@ -2530,7 +2530,7 @@ static void do_friends(Messenger *m, void *userdata)
             do_receipts(m, i, userdata);
             do_reqchunk_filecb(m, i, userdata);
 
-            if (0 == friend_not_valid(m, i)) m->friendlist[i].last_seen_time = (uint64_t) time(nullptr);
+            if (0 == !friend_is_valid(m, i)) m->friendlist[i].last_seen_time = (uint64_t) time(nullptr);
         }
     }
 }
