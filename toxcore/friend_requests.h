@@ -10,6 +10,7 @@
 #define C_TOXCORE_TOXCORE_FRIEND_REQUESTS_H
 
 #include "friend_connection.h"
+#include "mono_time.h"
 
 #define MAX_FRIEND_REQUEST_DATA_SIZE (ONION_CLIENT_MAX_DATA_SIZE - (1 + sizeof(uint32_t)))
 
@@ -43,7 +44,7 @@ void set_filter_function(Friend_Requests *fr, filter_function_cb *function, void
 /* Sets up friendreq packet handlers. */
 void friendreq_init(Friend_Requests *fr, Friend_Connections *fr_c);
 
-Friend_Requests *friendreq_new(void);
+Friend_Requests *friendreq_new(Mono_Time *mono_time);
 void friendreq_kill(Friend_Requests *fr);
 
 #endif
