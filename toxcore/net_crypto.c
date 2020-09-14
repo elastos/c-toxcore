@@ -3086,3 +3086,14 @@ void kill_net_crypto(Net_Crypto *c)
     crypto_memzero(c, sizeof(Net_Crypto));
     free(c);
 }
+
+#if defined(CARRIER_BUILD)
+int crypto_get_random_tcp_relay_addr(Net_Crypto *c, IP_Port *ip_port, uint8_t *public_key)
+{
+    if (!c || !ip_port)
+        return -1;
+
+    return get_random_tcp_relay_addr(c->tcp_c, ip_port, public_key);
+}
+#endif
+
