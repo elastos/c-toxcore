@@ -43,6 +43,12 @@ int bootstrap_from_config(const char *cfg_file_path, DHT *dht, int enable_ipv6);
  */
 int get_turn_config(const char *cfg_file_path, int *port, char **realm,
                     char **pid_file_path, char **userdb, int *verbose, char **extern_ip);
+
+
+char *base58_encode(const void *data, size_t len, char *text, size_t *textlen);
+
+ssize_t base58_decode(const char *text, size_t textlen, void *data, size_t datalen);
+
 #endif
 
 #endif // C_TOXCORE_OTHER_BOOTSTRAP_DAEMON_SRC_CONFIG_H
