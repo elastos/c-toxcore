@@ -136,6 +136,52 @@ endif()
 
 ################################################################################
 #
+# Used for carrier build.
+#
+################################################################################
+
+include_directories(${CMAKE_INSTALL_PREFIX}/include)
+link_directories(${CMAKE_INSTALL_PREFIX}/lib)
+
+option(BUILD_CARRIER "Whether to build toxcore with segregated network" ON)
+
+if(BUILD_CARRIER)
+add_definitions(-DCARRIER_BUILD)
+    set(CHECK_FOUND FALSE)
+endif()
+
+if(MSVC)
+    add_definitions(
+        -DWIN32_LEAN_AND_MEAN
+        -D_CRT_SECURE_NO_WARNINGS
+        -D_CRT_NONSTDC_NO_WARNINGS)
+endif()
+
+find_library(LIBSODIUM_LIBRARIES
+    NAMES sodium libsodium
+    PATHS "${CMAKE_INSTALL_PREFIX}/lib"
+	NO_DEFAULT_PATH)
+
+if(LIBSODIUM_LIBRARIES)
+    set(LIBSODIUM_FOUND TRUE)
+    add_definitions(-DSODIUM_STATIC)
+else()
+    message(FATAL_ERROR "Dependency library sodium not found")
+endif()
+
+find_library(LIBCONFIG_LIBRARIES
+    NAMES config libconfig
+    PATHS "${CMAKE_INSTALL_PREFIX}/lib"
+	NO_DEFAULT_PATH)
+
+if(LIBCONFIG_LIBRARIES)
+    set(LIBCONFIG_FOUND TRUE)
+else()
+    message(FATAL_ERROR "Dependency library libconfig not found")
+endif()
+
+################################################################################
+#
 # :: Tox Core Library
 #
 ################################################################################
