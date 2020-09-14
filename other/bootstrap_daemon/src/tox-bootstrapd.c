@@ -143,7 +143,7 @@ static void daemonize(LOG_BACKEND log_backend, char *pid_file_path)
     }
 
     // Open the PID file for writing
-    pid_file = fopen(pid_file_path, "a+");
+    pid_file = fopen(pid_file_path, "w+");
 
     if (pid_file == nullptr) {
         log_write(LOG_LEVEL_ERROR, "Couldn't open the PID file for writing: %s. Exiting.\n", pid_file_path);
@@ -173,7 +173,7 @@ static void daemonize(LOG_BACKEND log_backend, char *pid_file_path)
         exit(1);
     }
 
-
+#if 0
     // Change the current working directory
     if ((chdir("/")) < 0) {
         log_write(LOG_LEVEL_ERROR, "Couldn't change working directory to '/'. Exiting.\n");
@@ -186,6 +186,7 @@ static void daemonize(LOG_BACKEND log_backend, char *pid_file_path)
         close(STDIN_FILENO);
         close(STDERR_FILENO);
     }
+#endif
 }
 
 // Logs toxcore logger message using our logger facility
