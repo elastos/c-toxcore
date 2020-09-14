@@ -2310,3 +2310,23 @@ uint16_t tox_self_get_tcp_port(const Tox *tox, Tox_Err_Get_Port *error)
     unlock(tox);
     return 0;
 }
+
+#if defined(CARRIER_BUILD)
+int tox_self_get_random_tcp_relay(const Tox *tox, uint8_t *ip, uint8_t *public_key)
+{
+    const Messenger *m = tox->m;
+    IP_Port ip_port;
+    int rc;
+
+    if (!ip)
+        return -1;
+
+    rc = messenger_get_random_tcp_relay_addr(m, &ip_port, public_key);
+    if (rc < 0)
+        return -1;
+
+    memcpy(ip, &ip_port.ip.ip.v4.uint32, sizeof(uint32_t));
+    return 0;
+}
+#endif
+
