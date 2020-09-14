@@ -264,11 +264,16 @@ int32_t m_addfriend(Messenger *m, const uint8_t *address, const uint8_t *data, u
         uint32_t nospam;
         memcpy(&nospam, address + CRYPTO_PUBLIC_KEY_SIZE, sizeof(nospam));
 
-        if (m->friendlist[friend_id].friendrequest_nospam == nospam) {
+        if (m->friendlist[friend_id].friendrequest_nospam == nospam &&
+            (m->friendlist[friend_id].info_size == length &&
+             !memcmp(m->friendlist[friend_id].info, data, length))) {
             return FAERR_ALREADYSENT;
         }
 
         m->friendlist[friend_id].friendrequest_nospam = nospam;
+        memcpy(m->friendlist[friend_id].info, data, length);
+        m->friendlist[friend_id].info_size = length;
+
         return FAERR_SETNEWNOSPAM;
     }
 
@@ -1941,7 +1946,7 @@ Messenger *new_messenger(Mono_Time *mono_time, Messenger_Options *options, unsig
 
     m->mono_time = mono_time;
 
-    m->fr = friendreq_new();
+    m->fr = friendreq_new(m->mono_time);
 
     if (!m->fr) {
         free(m);
