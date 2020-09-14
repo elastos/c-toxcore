@@ -12,6 +12,13 @@
 
 #include "TCP_server.h"
 
+#if defined(CARRIER_BUILD)
+#include "network.h"
+#if defined(__ANDROID__)
+#define fprintf(...)
+#endif
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -50,7 +57,11 @@ typedef struct TCP_Secure_Connection {
     uint8_t shared_key[CRYPTO_SHARED_KEY_SIZE];
     uint16_t next_packet_length;
     TCP_Secure_Conn connections[NUM_CLIENT_CONNECTIONS];
-    uint8_t last_packet[2 + MAX_PACKET_SIZE];
+    uint8_t last_packet[2 + MAX_PACKET_SIZE
+#if defined(CARRIER_BUILD)
+    + sizeof(_w_magic)
+#endif
+    ];
     uint8_t status;
     uint16_t last_packet_length;
     uint16_t last_packet_sent;
@@ -279,7 +290,21 @@ uint16_t read_TCP_length(Socket sock)
 {
     const unsigned int count = net_socket_data_recv_buffer(sock);
 
-    if (count >= sizeof(uint16_t)) {
+    if (count >= sizeof(uint16_t) + carrier_magic_size()) {
+#if defined(CARRIER_BUILD)
+		uint8_t *magic = (uint8_t *)alloca(carrier_magic_size());
+		int mlen = net_recv(sock, magic, carrier_magic_size());
+
+		if (mlen != carrier_magic_size()) {
+			fprintf(stderr, "FAIL recv magic length\n");
+			return ~0;
+		}
+
+		if (!carrier_magic_check_unrewind(magic)) {
+			fprintf(stderr, "FAIL invalid magic\n");
+			return ~0;
+		}
+#endif
         uint16_t length;
         const int len = net_recv(sock, &length, sizeof(uint16_t));
 
@@ -481,18 +506,19 @@ static int write_packet_TCP_secure_connection(TCP_Secure_Connection *con, const 
         }
     }
 
-    VLA(uint8_t, packet, sizeof(uint16_t) + length + CRYPTO_MAC_SIZE);
+    CARRIER_VLA(uint8_t, packet, sizeof(uint16_t) + length + CRYPTO_MAC_SIZE);
 
     const uint16_t c_length = net_htons(length + CRYPTO_MAC_SIZE);
     memcpy(packet, &c_length, sizeof(uint16_t));
     int len = encrypt_data_symmetric(con->shared_key, con->sent_nonce, data, length, packet + sizeof(uint16_t));
 
-    if ((unsigned int)len != (SIZEOF_VLA(packet) - sizeof(uint16_t))) {
+    if ((unsigned int)len != (CARRIER_SIZEOF_VLA(packet) - sizeof(uint16_t))) {
         return -1;
     }
 
+    carrier_magic_set(packet);
     if (priority) {
-        len = sendpriority ? net_send(con->sock, packet, SIZEOF_VLA(packet)) : 0;
+        len = sendpriority ? net_send(con->sock, carrier_rewind(packet), carrier_rewind_sizeof(packet)) : 0;
 
         if (len <= 0) {
             len = 0;
@@ -500,14 +526,14 @@ static int write_packet_TCP_secure_connection(TCP_Secure_Connection *con, const 
 
         increment_nonce(con->sent_nonce);
 
-        if ((unsigned int)len == SIZEOF_VLA(packet)) {
+        if ((unsigned int)len == carrier_rewind_sizeof(packet)) {
             return 1;
         }
 
-        return add_priority(con, packet, SIZEOF_VLA(packet), len);
+        return add_priority(con, packet, carrier_rewind_sizeof(packet), len);
     }
 
-    len = net_send(con->sock, packet, SIZEOF_VLA(packet));
+    len = net_send(con->sock, carrier_rewind(packet), carrier_rewind_sizeof(packet));
 
     if (len <= 0) {
         return 0;
@@ -515,12 +541,12 @@ static int write_packet_TCP_secure_connection(TCP_Secure_Connection *con, const 
 
     increment_nonce(con->sent_nonce);
 
-    if ((unsigned int)len == SIZEOF_VLA(packet)) {
+    if ((unsigned int)len == carrier_rewind_sizeof(packet)) {
         return 1;
     }
 
-    memcpy(con->last_packet, packet, SIZEOF_VLA(packet));
-    con->last_packet_length = SIZEOF_VLA(packet);
+    memcpy(con->last_packet, carrier_rewind(packet), carrier_rewind_sizeof(packet));
+    con->last_packet_length = carrier_rewind_sizeof(packet);
     con->last_packet_sent = len;
     return 1;
 }

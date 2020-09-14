@@ -557,11 +557,12 @@ int sendpacket(Networking_Core *net, IP_Port ip_port, const uint8_t *data, uint1
         return -1;
     }
 
-    const int res = sendto(net->sock.socket, (const char *)data, length, 0, (struct sockaddr *)&addr, addrsize);
+    carrier_magic_set(data);
+    const int res = sendto(net->sock.socket, (const char *)carrier_rewind(data), carrier_rewind_size(length), 0, (struct sockaddr *)&addr, addrsize);
 
     loglogdata(net->log, "O=>", data, length, ip_port, res);
 
-    return res;
+    return res > 0 ? (res - carrier_magic_size()) : res;
 }
 
 /* Function to receive data
@@ -579,7 +580,7 @@ static int receivepacket(const Logger *log, Socket sock, IP_Port *ip_port, uint8
     socklen_t addrlen = sizeof(addr);
 #endif
     *length = 0;
-    int fail_or_len = recvfrom(sock.socket, (char *) data, MAX_UDP_PACKET_SIZE, 0, (struct sockaddr *)&addr, &addrlen);
+    int fail_or_len = recvfrom(sock.socket, (char *)carrier_rewind(data), carrier_rewind_size(MAX_UDP_PACKET_SIZE), 0, (struct sockaddr *)&addr, &addrlen);
 
     if (fail_or_len < 0) {
         int error = net_error();
@@ -592,6 +593,19 @@ static int receivepacket(const Logger *log, Socket sock, IP_Port *ip_port, uint8
 
         return -1; /* Nothing received. */
     }
+#if defined(CARRIER_BUILD)
+	fail_or_len -= carrier_magic_size();
+	if (fail_or_len < 0) {
+		LOGGER_ERROR(log, "Too short data receving from socket.");
+		return -1;
+	}
+	if (!carrier_magic_check(data)) {
+		//LOGGER_ERROR(log, "Received DHT message with invalid magic, dropped.");
+		return -1;
+	} else {
+		//LOGGER_DEBUG(log, "Recevied valid DHT message, congradulations!!!!");
+	}
+#endif
 
     *length = (uint32_t)fail_or_len;
 
@@ -640,6 +654,91 @@ void networking_registerhandler(Networking_Core *net, uint8_t byte, packet_handl
     net->packethandlers[byte].object = object;
 }
 
+#if defined(CARRIER_BUILD)
+static const char* packet_name(uint8_t type)
+{
+    const char *str;
+
+    switch (type) {
+    case NET_PACKET_PING_REQUEST:
+        str = "ping_request";
+        break;
+    case NET_PACKET_PING_RESPONSE:
+        str = "ping_response";
+        break;
+    case NET_PACKET_GET_NODES:
+        str = "get_nodes";
+        break;
+    case NET_PACKET_SEND_NODES_IPV6:
+        str = "send_nodes_ipv6";
+        break;
+    case NET_PACKET_COOKIE_REQUEST:
+        str = "cookie_request";
+        break;
+    case NET_PACKET_COOKIE_RESPONSE:
+        str = "cookie_response";
+        break;
+    case NET_PACKET_CRYPTO_HS:
+        str = "crypto_hs";
+        break;
+    case NET_PACKET_CRYPTO_DATA:
+        str = "crypto_data";
+        break;
+    case NET_PACKET_CRYPTO:
+        str = "crypto";
+        break;
+    case NET_PACKET_LAN_DISCOVERY:
+        str = "lan_discovery";
+        break;
+    case  NET_PACKET_ONION_SEND_INITIAL:
+        str = "onion_send_init";
+        break;
+    case  NET_PACKET_ONION_SEND_1:
+        str = "onion_send_1";
+        break;
+    case NET_PACKET_ONION_SEND_2:
+        str = "onion_send_2";
+        break;
+    case NET_PACKET_ANNOUNCE_REQUEST:
+        str = "announce_request";
+        break;
+    case NET_PACKET_ANNOUNCE_RESPONSE:
+        str = "announce_response";
+        break;
+    case NET_PACKET_ONION_DATA_REQUEST:
+        str = "onion_data_request";
+        break;
+    case NET_PACKET_ONION_DATA_RESPONSE:
+        str = "onion_data_response";
+        break;
+    case NET_PACKET_ONION_RECV_3:
+        str = "onion_recv_3";
+        break;
+    case NET_PACKET_ONION_RECV_2:
+        str = "onion_recv_2";
+        break;
+    case NET_PACKET_ONION_RECV_1:
+        str = "onion_recv_1";
+        break;
+    case BOOTSTRAP_INFO_PACKET_ID:
+        str = "bootstrap_info_packet_id";
+        break;
+    default:
+        str = "N/A";
+        break;
+    }
+    return str;
+}
+#else
+static const char* packet_name(uint8_t type)
+{
+    static uint8_t str[32];
+
+    sprintf(str, "[%0x]", type);
+    return str;
+}
+#endif
+
 void networking_poll(Networking_Core *net, void *userdata)
 {
     if (net_family_is_unspec(net->family)) {
@@ -648,7 +747,7 @@ void networking_poll(Networking_Core *net, void *userdata)
     }
 
     IP_Port ip_port;
-    uint8_t data[MAX_UDP_PACKET_SIZE];
+    CARRIER_VLA(uint8_t, data, MAX_UDP_PACKET_SIZE);
     uint32_t length;
 
     while (receivepacket(net->log, net->sock, &ip_port, data, &length) != -1) {
@@ -660,6 +759,8 @@ void networking_poll(Networking_Core *net, void *userdata)
             LOGGER_WARNING(net->log, "[%02u] -- Packet has no handler", data[0]);
             continue;
         }
+
+        LOGGER_TRACE(net->log, "received packet [0x%x](%s)", data[0], packet_name(data[0]));
 
         net->packethandlers[data[0]].function(net->packethandlers[data[0]].object, ip_port, data, length, userdata);
     }

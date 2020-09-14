@@ -29,7 +29,7 @@ static int handle_info_request(void *object, IP_Port source, const uint8_t *pack
 
     Networking_Core *nc = (Networking_Core *)object;
 
-    uint8_t data[1 + sizeof(bootstrap_version) + MAX_MOTD_LENGTH];
+    CARRIER_VLA(uint8_t, data, 1 + sizeof(bootstrap_version) + MAX_MOTD_LENGTH);
     data[0] = BOOTSTRAP_INFO_PACKET_ID;
     memcpy(data + 1, &bootstrap_version, sizeof(bootstrap_version));
     uint16_t len = 1 + sizeof(bootstrap_version) + bootstrap_motd_length;
