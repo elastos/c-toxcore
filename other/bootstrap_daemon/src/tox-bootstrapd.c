@@ -210,7 +210,16 @@ static void handle_signal(int signum)
     caught_signal = signum;
 }
 
+#ifndef CARRIER_BUILD
 int main(int argc, char *argv[])
+#else
+#include <signal.h>
+
+pid_t start_turn_server(int port, const char *realm, const char *pid_file,
+                        const char *userdb, int verbose, const char *external_ip, uint8_t *secret_key);
+
+int tox_bootstrap_main(int argc, char *argv[])
+#endif
 {
     umask(077);
     char *cfg_file_path;
@@ -474,6 +483,33 @@ int main(int argc, char *argv[])
         log_write(LOG_LEVEL_INFO, "Initialized LAN discovery successfully.\n");
     }
 
+#ifdef CARRIER_BUILD
+    pid_t turn_pid = 0;
+
+    {
+        int turn_port = 0;
+        char *turn_realm = NULL;
+        char *turn_pid_file = NULL;
+        char *turn_userdb = NULL;
+        char *turn_external_ip = NULL;
+        int turn_verbose = 0;
+
+        if (get_turn_config(cfg_file_path, &turn_port, &turn_realm,
+                            &turn_pid_file, &turn_userdb, &turn_verbose, &turn_external_ip)) {
+            log_write(LOG_LEVEL_INFO, "TURN config read successfully\n");
+        } else {
+            log_write(LOG_LEVEL_ERROR, "Couldn't read config file: %s. Exiting.\n", cfg_file_path);
+            return 1;
+        }
+
+        turn_pid = start_turn_server(turn_port, turn_realm, turn_pid_file,
+                                     turn_userdb, turn_verbose, turn_external_ip,
+                                     (uint8_t *)dht_get_self_secret_key(dht));
+        if (turn_pid < 0)
+            return 1;
+    }
+#endif
+
     struct sigaction sa;
 
     sa.sa_handler = handle_signal;
@@ -540,6 +576,11 @@ int main(int argc, char *argv[])
     mono_time_free(mono_time);
     kill_networking(net);
     logger_kill(logger);
+
+#ifdef CARRIER_BUILD
+    if (turn_pid > 0)
+        kill(turn_pid, SIGTERM);
+#endif
 
     return 0;
 }
