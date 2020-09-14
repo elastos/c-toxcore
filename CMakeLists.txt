@@ -14,8 +14,8 @@
 #
 ################################################################################
 
-cmake_minimum_required(VERSION 2.8.12)
-cmake_policy(VERSION 2.8.12)
+cmake_minimum_required(VERSION 2.9)
+cmake_policy(VERSION 2.9)
 project(toxcore)
 
 set(CMAKE_MODULE_PATH ${toxcore_SOURCE_DIR}/cmake)
@@ -518,7 +518,7 @@ if(DHT_BOOTSTRAP)
 endif()
 
 option(BOOTSTRAP_DAEMON "Enable building of tox-bootstrapd" ON)
-if(BOOTSTRAP_DAEMON AND WIN32)
+if(BOOTSTRAP_DAEMON AND MSVC)
   message(WARNING "Building tox-bootstrapd for Windows is not supported")
   set(BOOTSTRAP_DAEMON OFF)
 endif()
@@ -527,7 +527,7 @@ if(BOOTSTRAP_DAEMON)
     message(WARNING "Option BOOTSTRAP_DAEMON is enabled but required library LIBCONFIG was not found.")
     set(BOOTSTRAP_DAEMON OFF)
   else()
-    add_executable(tox-bootstrapd ${CPUFEATURES}
+    add_module(tox-bootstrapd
       other/bootstrap_daemon/src/command_line_arguments.c
       other/bootstrap_daemon/src/command_line_arguments.h
       other/bootstrap_daemon/src/config.c
@@ -544,7 +544,7 @@ if(BOOTSTRAP_DAEMON)
       other/bootstrap_node_packets.c
       other/bootstrap_node_packets.h)
     target_link_modules(tox-bootstrapd toxcore ${LIBCONFIG_LIBRARIES})
-    install(TARGETS tox-bootstrapd RUNTIME DESTINATION bin)
+	install(TARGETS tox-bootstrapd_static ARCHIVE DESTINATION lib)
   endif()
 endif()
 

@@ -505,14 +505,18 @@ uint16_t net_port(const Networking_Core *net)
 int sendpacket(Networking_Core *net, IP_Port ip_port, const uint8_t *data, uint16_t length)
 {
     if (net_family_is_unspec(net->family)) { /* Socket not initialized */
-        LOGGER_ERROR(net->log, "attempted to send message of length %u on uninitialised socket", (unsigned)length);
+        /* suppress redundant warning */
+        /* LOGGER_ERROR(net->log, "attempted to send message of length %u on "
+                        "uninitialised socket", (unsigned)length); */
         return -1;
     }
 
     /* socket TOX_AF_INET, but target IP NOT: can't send */
     if (net_family_is_ipv4(net->family) && !net_family_is_ipv4(ip_port.ip.family)) {
-        LOGGER_ERROR(net->log, "attempted to send message with network family %d (probably IPv6) on IPv4 socket",
-                     ip_port.ip.family.value);
+        /* This is a tox bug, doesn't affect normal usage. Suppress logging */
+        /* LOGGER_ERROR(net->log, "attempted to send message with network "
+                        "family %d (probably IPv6) on IPv4 socket",
+                        ip_port.ip.family.value); */
         return -1;
     }
 
