@@ -279,6 +279,128 @@ int get_general_config(const char *cfg_file_path, char **pid_file_path, char **k
     return 1;
 }
 
+#ifdef CARRIER_BUILD
+int get_turn_config(const char *cfg_file_path, int *port, char **realm,
+                    char **pid_file_path, char **userdb, int *verbose, char **external_ip)
+{
+    config_t cfg;
+
+    const char *NAME_TURN                 = "turn";
+
+    const char *NAME_PORT                 = "port";
+    const char *NAME_REALM                = "realm";
+    const char *NAME_PID_FILE_PATH        = "pid_file_path";
+    const char *NAME_USER_DB              = "userdb";
+    const char *NAME_VERBOSE              = "verbose";
+    const char *NAME_EXTERNAL_IP          = "external_ip";
+
+    config_init(&cfg);
+
+    // Read the file. If there is an error, report it and exit.
+    if (config_read_file(&cfg, cfg_file_path) == CONFIG_FALSE) {
+        log_write(LOG_LEVEL_ERROR, "%s:%d - %s\n", config_error_file(&cfg), config_error_line(&cfg), config_error_text(&cfg));
+        config_destroy(&cfg);
+        return 0;
+    }
+
+    config_setting_t *turn_cfg = config_lookup(&cfg, NAME_TURN);
+
+    if (turn_cfg == NULL) {
+        log_write(LOG_LEVEL_WARNING, "No '%s' setting in the configuration file. Skipping bootstrapping.\n",
+                  NAME_TURN);
+        config_destroy(&cfg);
+        return 1;
+    }
+
+    // Get port
+    if (config_setting_lookup_int(turn_cfg, NAME_PORT, port) == CONFIG_FALSE) {
+        log_write(LOG_LEVEL_WARNING, "No TURN '%s' setting in turn config file.\n", NAME_PORT);
+        *port = 0;
+    }
+
+    // Get realm
+    const char *tmp_realm;
+
+    if (config_setting_lookup_string(turn_cfg, NAME_REALM, &tmp_realm) == CONFIG_FALSE) {
+        log_write(LOG_LEVEL_WARNING, "No TURN '%s' setting in configuration file.\n", NAME_REALM);
+        tmp_realm = NULL;
+    }
+
+    if (tmp_realm) {
+        *realm = (char *)malloc(strlen(tmp_realm) + 1);
+        strcpy(*realm, tmp_realm);
+    } else {
+        *realm = NULL;
+    }
+
+    // Get PID file location
+    const char *tmp_pid_file;
+
+    if (config_setting_lookup_string(turn_cfg, NAME_PID_FILE_PATH, &tmp_pid_file) == CONFIG_FALSE) {
+        log_write(LOG_LEVEL_WARNING, "No TURN '%s' setting in configuration file.\n", NAME_PID_FILE_PATH);
+        tmp_pid_file = NULL;
+    }
+
+    if (tmp_pid_file) {
+        *pid_file_path = (char *)malloc(strlen(tmp_pid_file) + 1);
+        strcpy(*pid_file_path, tmp_pid_file);
+    } else {
+        *pid_file_path = NULL;
+    }
+
+    // Get user db location
+    const char *tmp_userdb;
+
+    if (config_setting_lookup_string(turn_cfg, NAME_USER_DB, &tmp_userdb) == CONFIG_FALSE) {
+        log_write(LOG_LEVEL_WARNING, "No TURN '%s' setting in configuration file.\n", NAME_USER_DB);
+        tmp_userdb = NULL;
+    }
+
+    if (tmp_userdb) {
+        *userdb = (char *)malloc(strlen(tmp_userdb) + 1);
+        strcpy(*userdb, tmp_userdb);
+    } else {
+        *userdb = NULL;
+    }
+
+    if (config_setting_lookup_bool(turn_cfg, NAME_VERBOSE, verbose) == CONFIG_FALSE) {
+         *verbose = 0;
+    }
+
+    // Get external IP
+    const char *tmp_external_ip;
+
+    if (config_setting_lookup_string(turn_cfg, NAME_EXTERNAL_IP, &tmp_external_ip) == CONFIG_FALSE) {
+        log_write(LOG_LEVEL_WARNING, "No TURN '%s' setting in configuration file.\n", NAME_EXTERNAL_IP);
+        tmp_external_ip = NULL;
+    }
+
+    if (tmp_external_ip) {
+        *external_ip = (char *)malloc(strlen(tmp_external_ip) + 1);
+        strcpy(*external_ip, tmp_external_ip);
+    } else {
+        *external_ip = NULL;
+    }
+
+    config_destroy(&cfg);
+
+    log_write(LOG_LEVEL_INFO, "Successfully read TURN config:\n");
+    if (*port)
+        log_write(LOG_LEVEL_INFO, "'%s': %d\n", NAME_PORT,                 *port);
+    if (*realm)
+        log_write(LOG_LEVEL_INFO, "'%s': %s\n", NAME_REALM,                *realm);
+    if (*pid_file_path)
+        log_write(LOG_LEVEL_INFO, "'%s': %s\n", NAME_PID_FILE_PATH,        *pid_file_path);
+    if (*userdb)
+        log_write(LOG_LEVEL_INFO, "'%s': %s\n", NAME_USER_DB,              *userdb);
+    if (*verbose)
+        log_write(LOG_LEVEL_INFO, "'%s': %d\n", NAME_VERBOSE,              *verbose);
+    if (*external_ip)
+        log_write(LOG_LEVEL_INFO, "'%s': %s\n", NAME_EXTERNAL_IP,          *external_ip);
+
+    return 1;
+}
+#else
 /**
  *
  * Converts a hex string with even number of characters into binary.
@@ -308,6 +430,7 @@ static uint8_t *bootstrap_hex_string_to_bin(const char *hex_string)
 
     return ret;
 }
+#endif
 
 int bootstrap_from_config(const char *cfg_file_path, DHT *dht, int enable_ipv6)
 {
