@@ -489,7 +489,7 @@ int m_friend_exists(const Messenger *m, int32_t friendnumber)
  * return 0 if success.
  */
 int m_send_message_generic(Messenger *m, int32_t friendnumber, uint8_t type, const uint8_t *message, uint32_t length,
-                           uint32_t *message_id)
+                           const uint32_t *message_id)
 {
     if (type > MESSAGE_ACTION) {
         LOGGER_ERROR(m->log, "Message type %d is invalid", type);
@@ -527,13 +527,8 @@ int m_send_message_generic(Messenger *m, int32_t friendnumber, uint8_t type, con
         return -4;
     }
 
-    uint32_t msg_id = ++m->friendlist[friendnumber].message_id;
-
-    add_receipt(m, friendnumber, packet_num, msg_id);
-
-    if (message_id) {
-        *message_id = msg_id;
-    }
+    if (message_id)
+        add_receipt(m, friendnumber, packet_num, *message_id);
 
     return 0;
 }

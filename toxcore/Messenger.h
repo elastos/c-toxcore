@@ -388,7 +388,7 @@ int m_friend_exists(const Messenger *m, int32_t friendnumber);
  *  the value in message_id will be passed to your read_receipt callback when the other receives the message.
  */
 int m_send_message_generic(Messenger *m, int32_t friendnumber, uint8_t type, const uint8_t *message, uint32_t length,
-                           uint32_t *message_id);
+                           const uint32_t *message_id);
 
 
 /* Set the name and name_length of a friend.
