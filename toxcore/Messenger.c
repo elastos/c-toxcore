@@ -488,6 +488,7 @@ int m_friend_exists(const Messenger *m, int32_t friendnumber)
  * return -5 if bad type.
  * return 0 if success.
  */
+#ifdef CARRIER_BUILD
 int m_send_message_generic(Messenger *m, int32_t friendnumber, uint8_t type, const uint8_t *message, uint32_t length,
                            uint32_t *message_id)
 {
@@ -532,6 +533,57 @@ int m_send_message_generic(Messenger *m, int32_t friendnumber, uint8_t type, con
 
     return 0;
 }
+#else
+int m_send_message_generic(Messenger *m, int32_t friendnumber, uint8_t type, const uint8_t *message, uint32_t length,
+                           uint32_t *message_id)
+{
+    if (type > MESSAGE_ACTION) {
+        LOGGER_ERROR(m->log, "Message type %d is invalid", type);
+        return -5;
+    }
+
+    if (!friend_is_valid(m, friendnumber)) {
+        LOGGER_ERROR(m->log, "Friend number %d is invalid", friendnumber);
+        return -1;
+    }
+
+    if (length >= MAX_CRYPTO_DATA_SIZE) {
+        LOGGER_ERROR(m->log, "Message length %u is too large", length);
+        return -2;
+    }
+
+    if (m->friendlist[friendnumber].status != FRIEND_ONLINE) {
+        LOGGER_ERROR(m->log, "Friend %d is not online", friendnumber);
+        return -3;
+    }
+
+    VLA(uint8_t, packet, length + 1);
+    packet[0] = PACKET_ID_MESSAGE + type;
+
+    if (length != 0) {
+        memcpy(packet + 1, message, length);
+    }
+
+    int64_t packet_num = write_cryptpacket(m->net_crypto, friend_connection_crypt_connection_id(m->fr_c,
+                                           m->friendlist[friendnumber].friendcon_id), packet, length + 1, 0);
+
+    if (packet_num == -1) {
+        LOGGER_ERROR(m->log, "Failed to write crypto packet for message of length %d to friend %d",
+                     length, friendnumber);
+        return -4;
+    }
+
+    uint32_t msg_id = ++m->friendlist[friendnumber].message_id;
+
+    add_receipt(m, friendnumber, packet_num, msg_id);
+
+    if (message_id) {
+        *message_id = msg_id;
+    }
+
+    return 0;
+}
+#endif
 
 /* Send a name packet to friendnumber.
  * length is the length with the NULL terminator.
