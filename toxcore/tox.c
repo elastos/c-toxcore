@@ -1321,28 +1321,12 @@ static void set_message_error(const Logger *log, int ret, Tox_Err_Friend_Send_Me
     }
 }
 
-#ifdef CARRIER_BUILD
-bool tox_friend_send_message(Tox *tox, uint32_t friend_number, uint32_t *message_id, TOX_MESSAGE_TYPE type,
-                             const uint8_t *message, size_t length, TOX_ERR_FRIEND_SEND_MESSAGE *error)
-{
-    if (!message) {
-        SET_ERROR_PARAMETER(error, TOX_ERR_FRIEND_SEND_MESSAGE_NULL);
-        return false;
-    }
 
-    if (!length) {
-        SET_ERROR_PARAMETER(error, TOX_ERR_FRIEND_SEND_MESSAGE_EMPTY);
-        return false;
-    }
-
-    lock(tox);
-    set_message_error(tox->m->log, m_send_message_generic(tox->m, friend_number, type, message, length, message_id),
-                      error);
-    unlock(tox);
-    return true;
-}
+#if defined(CARRIER_BUILD)
+bool tox_friend_send_message(Tox *tox, uint32_t friend_number, uint32_t msgid, Tox_Message_Type type, const uint8_t *message,
 #else
 uint32_t tox_friend_send_message(Tox *tox, uint32_t friend_number, Tox_Message_Type type, const uint8_t *message,
+#endif
                                  size_t length, Tox_Err_Friend_Send_Message *error)
 {
     if (!message) {
@@ -1355,14 +1339,24 @@ uint32_t tox_friend_send_message(Tox *tox, uint32_t friend_number, Tox_Message_T
         return 0;
     }
 
+
+#if defined(CARRIER_BUILD)
+    uint32_t message_id = msgid;
+#else
     uint32_t message_id = 0;
+#endif
     lock(tox);
+
     set_message_error(tox->m->log, m_send_message_generic(tox->m, friend_number, type, message, length, &message_id),
                       error);
     unlock(tox);
+
+#if defined(CARRIER_BUILD)
+    return message_id != 0;
+#else
     return message_id;
-}
 #endif
+}
 
 void tox_callback_friend_read_receipt(Tox *tox, tox_friend_read_receipt_cb *callback)
 {
