@@ -527,6 +527,10 @@ int m_send_message_generic(Messenger *m, int32_t friendnumber, uint8_t type, con
         return -4;
     }
 
+#if defined(CARRIER_BUILD)
+    if (message_id)
+        add_receipt(m, friendnumber, packet_num, *message_id);
+#else
     uint32_t msg_id = ++m->friendlist[friendnumber].message_id;
 
     add_receipt(m, friendnumber, packet_num, msg_id);
@@ -534,6 +538,7 @@ int m_send_message_generic(Messenger *m, int32_t friendnumber, uint8_t type, con
     if (message_id) {
         *message_id = msg_id;
     }
+#endif
 
     return 0;
 }
