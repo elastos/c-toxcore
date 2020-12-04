@@ -1323,7 +1323,7 @@ static void set_message_error(const Logger *log, int ret, Tox_Err_Friend_Send_Me
 
 
 #if defined(CARRIER_BUILD)
-bool tox_friend_send_message(Tox *tox, uint32_t friend_number, uint32_t *msgid, Tox_Message_Type type, const uint8_t *message,
+bool tox_friend_send_message(Tox *tox, uint32_t friend_number, uint32_t msgid, Tox_Message_Type type, const uint8_t *message,
 #else
 uint32_t tox_friend_send_message(Tox *tox, uint32_t friend_number, Tox_Message_Type type, const uint8_t *message,
 #endif
