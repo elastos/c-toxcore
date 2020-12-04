@@ -1786,7 +1786,7 @@ typedef enum TOX_ERR_FRIEND_SEND_MESSAGE {
  * @param length Length of the message to be sent.
  */
 #if defined(CARRIER_BUILD)
-bool tox_friend_send_message(Tox *tox, uint32_t friend_number, uint32_t *msgid, TOX_MESSAGE_TYPE type,
+bool tox_friend_send_message(Tox *tox, uint32_t friend_number, uint32_t msgid, TOX_MESSAGE_TYPE type,
                              const uint8_t *message, size_t length, TOX_ERR_FRIEND_SEND_MESSAGE *error);
 #else
 uint32_t tox_friend_send_message(Tox *tox, uint32_t friend_number, TOX_MESSAGE_TYPE type, const uint8_t *message,
